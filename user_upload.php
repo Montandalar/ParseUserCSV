@@ -52,7 +52,19 @@ EOD
         }
     }
 
-    private function loadCSV() {
+    // This function has the drawback that the names like O'Reilly and McDonald
+    // have their capitalisation ruined (assuming it was good to begin with).
+    // The trade off is names in ALL CAPS or MeSSy CAse are fixed.
+    // The scope of this project is a bit small to worry about adding surname
+    // capitalisation rules.
+    private function preprocessName($n) {
+        $n = trim($n);
+        $n = strtolower($n);
+        $n[0] = strtoupper($n[0]);
+        return $n;
+    }
+
+    private function loadCSV($filename) {
         $line = fgetcsv($this->input);
         assert($line != NULL);
         if ($line === FALSE) return;
@@ -84,8 +96,10 @@ EOD;
         $stmt->bindParam(':email', $email);
         $stmt->bindParam(':name', $name);
         $stmt->bindParam(':surname', $surname);
+        $lineNo = 2;
         do {
             $line = fgetcsv($this->input);
+            ++$lineNo;
             if ($line === FALSE) {
                 return; // Done
             }
@@ -97,14 +111,28 @@ EOD;
             // * Pre-process / validate each field
 
             $email = $line[$columnIndexes["email"]];
-            $name = $line[$columnIndexes["name"]];
-            $surname = $line[$columnIndexes["surname"]];
-            $stmt->execute();
+            $email = trim($email);
+            $email = strtolower($email);
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                printf("%s: Warning: Invalid email %s on line %d\n",
+                         $filename, $email, $lineNo);
+                continue;
+            }
+
+            $name = $this->preprocessName($line[$columnIndexes["name"]]);
+            $surname = $this->preprocessName($line[$columnIndexes["surname"]]);
             $result = $stmt->execute();
+            if ($result === FALSE) {
+                $einfo = $stmt->errorInfo();
+                // einfo[2] is message, [1] is the db-specific code
+                printf("%s: Insertion failed for line %d: %s (code: %d)\n",
+                         $filename, $lineNo, $einfo[2], $einfo[1]);
+            }
         } while(1);
     }
 
-    private static function handleWarning($errno, $errstr) {
+    // This function must remain public so it can be accessed from outside
+    public static function handleWarning($errno, $errstr) {
         if (strstr($errstr,"Permission denied")) {
             echo "$errstr\n";
             return true;
@@ -185,7 +213,7 @@ EOD;
             exit(EXIT_NO_FILE);
         }
 
-        $this->loadCSV();
+        $this->loadCSV($opts['file']);
         fclose($this->input);
 
     }
