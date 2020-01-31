@@ -29,9 +29,9 @@ class UserUploader {
 <<<'EOD'
 CREATE OR REPLACE TABLE users (
 	id BIGINT AUTO_INCREMENT PRIMARY KEY,
-	email VARCHAR(200),
-	name VARCHAR(200),
-	surname VARCHAR(200)
+	email VARCHAR(100) UNIQUE,
+	name VARCHAR(100),
+	surname VARCHAR(100)
 );
 EOD
             );
@@ -50,6 +50,58 @@ EOD
         } catch (PDOException $e) {
             echo "Error checking table: ", $e->getMessage(), "\n";
         }
+    }
+
+    private function loadCSV() {
+        $line = fgetcsv($this->input);
+        assert($line != NULL);
+        if ($line === FALSE) return;
+
+        $validColumns = ['name', 'surname', 'email'];
+        $columnIndexes = [];
+        foreach ($line as $idx => $column) {
+            $colName = trim($column);
+            $columnValid = false;
+            foreach ($validColumns as $vc) {
+                if (strcasecmp($vc, $colName) == 0) {
+                    $columnValid = true;
+                }
+            }
+            if ($columnValid === false) {
+                printf("Invalid column present in CSV file: %s",
+                        $columnIndexes[$column]);
+                return false;
+            }
+            $columnIndexes[$colName] = $idx;
+        }
+
+        $queryStr =
+<<<'EOD'
+INSERT INTO users(email, name, surname)
+VALUES (:email, :name, :surname)
+EOD;
+        $stmt = $this->dbh->prepare($queryStr);
+        $stmt->bindParam(':email', $email);
+        $stmt->bindParam(':name', $name);
+        $stmt->bindParam(':surname', $surname);
+        do {
+            $line = fgetcsv($this->input);
+            if ($line === FALSE) {
+                return; // Done
+            }
+            if ($line == [NULL]) {
+                continue; // Empty line
+            }
+            // TODO:
+            // * Check result of execution. Email must be unique.
+            // * Pre-process / validate each field
+
+            $email = $line[$columnIndexes["email"]];
+            $name = $line[$columnIndexes["name"]];
+            $surname = $line[$columnIndexes["surname"]];
+            $stmt->execute();
+            $result = $stmt->execute();
+        } while(1);
     }
 
     private static function handleWarning($errno, $errstr) {
@@ -133,7 +185,8 @@ EOD
             exit(EXIT_NO_FILE);
         }
 
-        // Do the database insertion
+        $this->loadCSV();
+        fclose($this->input);
 
     }
 }
