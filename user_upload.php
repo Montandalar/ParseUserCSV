@@ -3,6 +3,8 @@
 define("EXIT_SUCCESS", 0);
 define("EXIT_BAD_INVOCATION", 1);
 define("EXIT_DATABASE_ERROR", 2);
+define("EXIT_NO_TABLE", 3);
+define("EXIT_NO_FILE", 4);
 
 class UserUploader {
     private function printUsage() {
@@ -40,11 +42,32 @@ EOD
         }
     }
 
+    private function tableExists() {
+        try {
+            $stmt = $this->dbh->prepare("SHOW TABLES LIKE 'users';");
+            $res = $stmt->execute();
+            return $stmt->rowCount() > 0;
+        } catch (PDOException $e) {
+            echo "Error checking table: ", $e->getMessage(), "\n";
+        }
+    }
+
+    private static function handleWarning($errno, $errstr) {
+        if (strstr($errstr,"Permission denied")) {
+            echo "$errstr\n";
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     public function main() {
         global $argv;
         global $argc;
 
-        $opts = getopt("u:p:h:d:", ["file::", "create_table", "dry_run::", "help::"],
+        set_error_handler("UserUploader::handleWarning", E_WARNING);
+
+        $opts = getopt("u:p:h:d:", ["file:", "create_table", "dry_run::", "help"],
             $optind);
 
         //var_dump($opts);
@@ -82,15 +105,33 @@ EOD
             exit(EXIT_DATABASE_ERROR);
         }
 
-        // If the option --create_table was given do that now then quit
         if (isset($opts['create_table'])) {
             $this->createTable();
             exit(EXIT_SUCCESS);
         }
 
-        // If the table does not exist, quit now
-        
+        if (!isset($opts['file'])) {
+            echo "Error: no input file specified\n";
+            $this->printUsage();
+            exit(EXIT_NO_TABLE);
+        }
+
+        if (!file_exists($opts['file'])) {
+            echo "Error: no such file: ", $opts['file'];
+        }
+
+        if (!$this->tableExists()) {
+            echo "The 'users' table does not exist. Run this program with --create_table\n";
+            exit(EXIT_NO_TABLE);
+        }
+
         // Load the CSV
+        // Binary mode won't be necessary on this text file
+        $this->input = fopen($opts['file'], 'r');
+        if (!$this->input) {
+            printf("Could not open file: %s\n", $opts['file']);
+            exit(EXIT_NO_FILE);
+        }
 
         // Do the database insertion
 
