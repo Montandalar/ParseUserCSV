@@ -1,7 +1,6 @@
 <?php
 
 function print_usage() {
-
 ?>
 user_upload.php - Parse a CSV of users into the database
 
@@ -13,7 +12,7 @@ user_upload.php - Parse a CSV of users into the database
     -p - MySQL database password
     -h - MySQL database host
     --help - show this help
-<?php    
+<?php
 }
 
 function main() {
@@ -24,13 +23,7 @@ function main() {
         $optind);
 
     //var_dump($opts);
-    //echo "\$argv[$optind]=", $argv[$optind], "\n";
     if (isset($opts["help"])) {
-        print_usage();
-        exit(1);
-    }
-    if (($optind < $argv)) {
-        printf("Unrecognised option: %s\n\n", $argv[$optind-1]);
         print_usage();
         exit(1);
     }
@@ -38,6 +31,7 @@ function main() {
     foreach (["u" => "username", "p" => "password", "h" => "host"] as $opt => $msg) {
         if (!isset($opts[$opt])) {
             printf("Please specify the %s for the database\n", $msg);
+            print_usage();
             exit(1);
         }
     }
