@@ -5,15 +5,49 @@
 require 'UserUploader.php';
 
 $uploader = new UserUploader();
+
+// TODO: Would be moved into config for a production application
+// OR a smarter process would automate creating a MySQL user and db during testing
+$user = "phpapp";
+$pass = "phpapp";
+$database = "appdb";
+$host = "localhost";
+
+// No args -> Bad invocation
 $ret = $uploader->main(["user_upload.php"]);
 assert($ret == UserUploader::EXIT_BAD_INVOCATION);
 
-$ret = $uploader->main(explode(" ",
-        "user_upload.php -u phpapp -p phpapp -h localhost -d appdb --create_table"));
+// Bad invocation - invalid arg
+$ret = $uploader->main(["user_upload.php", "--foo"]);
+assert($ret = UserUploader::EXIT_BAD_INVOCATION);
+
+// Help -> Success
+$ret = $uploader->main(["user_upload.php", "--help"]);
 assert($ret == UserUploader::EXIT_SUCCESS);
 
+// Try database connection with bad details - host
 $ret = $uploader->main(explode(" ",
-        "user_upload.php -u phpapp -p phpapp -h localhost -d appdb"));
+        "user_upload.php -u nope -p nope -h nope -d nope --create_table"));
+assert($ret == UserUploader::EXIT_DATABASE_ERROR);
+
+// Try database connection with bad details - credentials
+$ret = $uploader->main(explode(" ",
+        "user_upload.php -u nope -p nope -h $host -d nope --create_table"));
+assert($ret == UserUploader::EXIT_DATABASE_ERROR);
+
+// Try database connection with bad details - database
+$ret = $uploader->main(explode(" ",
+        "user_upload.php -u $user -p $pass -h $host -d this_db_does_not_exist --create_table"));
+assert($ret == UserUploader::EXIT_DATABASE_ERROR);
+
+// Create table should work
+$ret = $uploader->main(explode(" ",
+        "user_upload.php -u $user -p $pass -h $host -d $database --create_table"));
+assert($ret == UserUploader::EXIT_SUCCESS);
+
+// File required -> Exit 'no file'
+$ret = $uploader->main(explode(" ",
+        "user_upload.php -u $user -p $pass -h $host -d $database"));
 assert($ret == UserUploader::EXIT_NO_FILE);
 
 // Create a temporary file, then delete it, to ensure it does not exist.
@@ -23,8 +57,7 @@ assert(unlink($fname));
 
 // Try to read the temp file as input
 $ret = $uploader->main(explode(" ",
-        "user_upload.php -u phpapp -p phpapp -h localhost -d appdb --file $fname"));
+        "user_upload.php -u $user -p $pass -h $host -d appdb --file $fname"));
 assert($ret == UserUploader::EXIT_NO_FILE);
-
 
 ?>

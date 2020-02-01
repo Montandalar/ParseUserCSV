@@ -155,8 +155,6 @@ EOD;
     public function main($argv) {
         set_error_handler("UserUploader::handleWarning", E_WARNING);
 
-        $opts = getopt("u:p:h:d:",
-                        ["file:", "create_table", "dry_run::", "help"]);
 		$paramDefs = [
 			\GetOpt\Option::create(null, 'file', \GetOpt\GetOpt::REQUIRED_ARGUMENT)
 				->setDescription("Path of the CSV to be parsed"),
@@ -186,11 +184,11 @@ EOD;
 			echo $e->getMessage(), "\n";
 			return UserUploader::EXIT_BAD_INVOCATION;
 		}
-		//foreach ($opts as $key => $value) { echo sprintf('%s: %s', $key, $value) . PHP_EOL; }
+		foreach ($opts as $key => $value) { echo sprintf('%s: %s', $key, $value) . PHP_EOL; }
 
-        if (isset($opts["help"])) {
+        if ($opts["help"]) {
 			echo $opts->getHelpText();
-            return UserUploader::EXIT_BAD_INVOCATION;
+            return UserUploader::EXIT_SUCCESS;
         }
 
         // Not the approach to use if the application would be localised, but it
