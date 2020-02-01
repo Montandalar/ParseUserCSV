@@ -7,6 +7,11 @@ define("EXIT_NO_TABLE", 3);
 define("EXIT_NO_FILE", 4);
 
 class UserUploader {
+    /** @var PDO */
+    private $dbh;
+    /** @var resource */
+    private $input;
+
     private function printUsage() {
 ?>
     user_upload.php - Parse a CSV of users into the database
@@ -46,9 +51,10 @@ EOD
         try {
             $stmt = $this->dbh->prepare("SHOW TABLES LIKE 'users';");
             $res = $stmt->execute();
-            return $stmt->rowCount() > 0;
+            return $res && ($stmt->rowCount() > 0);
         } catch (PDOException $e) {
             echo "Error checking table: ", $e->getMessage(), "\n";
+            return false;
         }
     }
 
@@ -57,14 +63,15 @@ EOD
     // The trade off is names in ALL CAPS or MeSSy CAse are fixed.
     // The scope of this project is a bit small to worry about adding surname
     // capitalisation rules.
-    private function preprocessName($n) {
+    private function preprocessName(string $n) {
         $n = trim($n);
         $n = strtolower($n);
         $n[0] = strtoupper($n[0]);
         return $n;
     }
 
-    private function loadCSV($filename) {
+    // Uses the 
+    private function loadCSV(string $filename) {
         $line = fgetcsv($this->input);
         assert($line != NULL);
         if ($line === FALSE) return;
@@ -136,9 +143,8 @@ EOD;
         if (strstr($errstr,"Permission denied")) {
             echo "$errstr\n";
             return true;
-        } else {
-            return false;
         }
+        return false;
     }
 
     public function main() {
@@ -147,13 +153,13 @@ EOD;
 
         set_error_handler("UserUploader::handleWarning", E_WARNING);
 
-        $opts = getopt("u:p:h:d:", ["file:", "create_table", "dry_run::", "help"],
-            $optind);
+        $opts = getopt("u:p:h:d:",
+                        ["file:", "create_table", "dry_run::", "help"]);
 
         //var_dump($opts);
         if (isset($opts["help"])) {
             $this->printUsage();
-            exit(EXIT_BAD_INVOCATION);
+            return EXIT_BAD_INVOCATION;
         }
 
         // Not the approach to use if the application would be localised, but it
@@ -165,7 +171,7 @@ EOD;
             if (!isset($opts[$opt])) {
                 printf("Please specify the %s for MySQL\n", $msg);
                 $this->printUsage();
-                exit(EXIT_BAD_INVOCATION);
+                return EXIT_BAD_INVOCATION;
             }
         }
 
@@ -182,18 +188,18 @@ EOD;
             } else if ($e->getCode() == 1044) {
                 echo "Make sure your database user has permissions to use the database\n";
             }
-            exit(EXIT_DATABASE_ERROR);
+            return EXIT_DATABASE_ERROR;
         }
 
         if (isset($opts['create_table'])) {
             $this->createTable();
-            exit(EXIT_SUCCESS);
+            return EXIT_SUCCESS;
         }
 
         if (!isset($opts['file'])) {
             echo "Error: no input file specified\n";
             $this->printUsage();
-            exit(EXIT_NO_TABLE);
+            return EXIT_NO_TABLE;
         }
 
         if (!file_exists($opts['file'])) {
@@ -202,7 +208,7 @@ EOD;
 
         if (!$this->tableExists()) {
             echo "The 'users' table does not exist. Run this program with --create_table\n";
-            exit(EXIT_NO_TABLE);
+            return EXIT_NO_TABLE;
         }
 
         // Load the CSV
@@ -210,7 +216,7 @@ EOD;
         $this->input = fopen($opts['file'], 'r');
         if (!$this->input) {
             printf("Could not open file: %s\n", $opts['file']);
-            exit(EXIT_NO_FILE);
+            return EXIT_NO_FILE;
         }
 
         $this->loadCSV($opts['file']);
@@ -220,5 +226,5 @@ EOD;
 }
 
 $uploader = new UserUploader();
-$uploader->main();
+exit($uploader->main());
 ?>
