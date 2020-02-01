@@ -1,0 +1,5 @@
+{
+    "require": {
+        "vanilla/garden-cli": "^2.2"
+    }
+}
