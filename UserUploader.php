@@ -227,7 +227,7 @@ EOD;
         if (!isset($opts['file'])) {
             echo "Error: no input file specified\n";
             $this->printUsage();
-            return UserUploader::EXIT_NO_TABLE;
+            return UserUploader::EXIT_NO_FILE;
         }
 
         if (!file_exists($opts['file'])) {
