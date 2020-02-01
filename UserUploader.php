@@ -29,7 +29,7 @@ class UserUploader {
 <?php
     }
 
-    private function createTable() {
+    private function createTable() : bool {
         try {
             $stmt = $this->dbh->prepare(
 <<<'EOD'
@@ -48,7 +48,7 @@ EOD
         }
     }
 
-    private function tableExists() {
+    private function tableExists() : bool {
         try {
             $stmt = $this->dbh->prepare("SHOW TABLES LIKE 'users';");
             $res = $stmt->execute();
@@ -64,7 +64,7 @@ EOD
     // The trade off is names in ALL CAPS or MeSSy CAse are fixed.
     // The scope of this project is a bit small to worry about adding surname
     // capitalisation rules.
-    private function preprocessName(string $n) {
+    private function preprocessName(string $n) : string {
         $n = trim($n);
         $n = strtolower($n);
         $n[0] = strtoupper($n[0]);
@@ -72,10 +72,16 @@ EOD
     }
 
     // Uses the 
-    private function loadCSV(string $filename) {
+    private function loadCSV(string $filename) : int {
         $line = fgetcsv($this->input);
-        assert($line != NULL);
-        if ($line === FALSE) return;
+        if ($line === NULL) { // empty file
+            echo "$filename: Error: Invalid file\n";
+            return UserUploader::EXIT_NO_FILE;
+        }
+        if ($line === FALSE) {
+            echo "$filename: Warning: Empty file\n";
+            return UserUploader::EXIT_SUCCESS;
+        }
 
         $validColumns = ['name', 'surname', 'email'];
         $columnIndexes = [];
@@ -109,7 +115,7 @@ EOD;
             $line = fgetcsv($this->input);
             ++$lineNo;
             if ($line === FALSE) {
-                return; // Done
+                return UserUploader::EXIT_SUCCESS; // Done
             }
             if ($line == [NULL]) {
                 continue; // Empty line
@@ -140,7 +146,7 @@ EOD;
     }
 
     // This function must remain public so it can be accessed from outside
-    public static function handleWarning($errno, $errstr) {
+    public static function handleWarning($errno, $errstr) : bool {
         if (strstr($errstr,"Permission denied")) {
             echo "$errstr\n";
             return true;
@@ -152,7 +158,7 @@ EOD;
         return false;
     }
 
-    public function main($argv) {
+    public function main($argv) : int {
         set_error_handler("UserUploader::handleWarning", E_WARNING);
 
 		$paramDefs = [
@@ -249,10 +255,9 @@ EOD;
             return UserUploader::EXIT_NO_FILE;
         }
 
-        $this->loadCSV($opts['file']);
+        $ret = $this->loadCSV($opts['file']);
         fclose($this->input);
-
-		return UserUploader::EXIT_SUCCESS;
+		return $ret;
 
     }
 }

@@ -54,10 +54,29 @@ assert($ret == UserUploader::EXIT_NO_FILE);
 $fname = tempnam(".", "");
 assert($fname !== FALSE);
 assert(unlink($fname));
-
 // Try to read the temp file as input
 $ret = $uploader->main(explode(" ",
         "user_upload.php -u $user -p $pass -h $host -d appdb --file $fname"));
 assert($ret == UserUploader::EXIT_NO_FILE);
+
+// Try to read file without permission
+$fname = tempnam(".", "");
+assert($fname !== FALSE);
+// Untested on windows:
+// Make file un-readable,writeable,executable by everyone
+assert(chmod($fname, 0));
+$ret = $uploader->main(explode(" ",
+        "user_upload.php -u $user -p $pass -h $host -d appdb --file $fname"));
+assert($ret == UserUploader::EXIT_NO_FILE);
+assert(unlink($fname));
+
+// Empty file should be a no-op
+$fname = tempnam(".", "");
+assert($fname !== FALSE);
+$ret = $uploader->main(explode(" ",
+        "user_upload.php -u $user -p $pass -h $host -d appdb --file $fname"));
+assert($ret == UserUploader::EXIT_SUCCESS);
+assert(unlink($fname));
+
 
 ?>
