@@ -148,7 +148,7 @@ EOD;
         return false;
     }
 
-    public function main($argc, $argv) {
+    public function main($argv) {
         set_error_handler("UserUploader::handleWarning", E_WARNING);
 
         $opts = getopt("u:p:h:d:",
