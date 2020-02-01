@@ -145,6 +145,10 @@ EOD;
             echo "$errstr\n";
             return true;
         }
+		if (strstr($errstr, "No such file")) {
+			echo "$errstr\n";
+			return true;
+		}
         return false;
     }
 
@@ -182,9 +186,8 @@ EOD;
 			echo $e->getMessage(), "\n";
 			return UserUploader::EXIT_BAD_INVOCATION;
 		}
-		foreach ($opts as $key => $value) { echo sprintf('%s: %s', $key, $value) . PHP_EOL; }
+		//foreach ($opts as $key => $value) { echo sprintf('%s: %s', $key, $value) . PHP_EOL; }
 
-        //var_dump($opts);
         if (isset($opts["help"])) {
 			echo $opts->getHelpText();
             return UserUploader::EXIT_BAD_INVOCATION;
@@ -231,7 +234,8 @@ EOD;
         }
 
         if (!file_exists($opts['file'])) {
-            echo "Error: no such file: ", $opts['file'];
+            echo "Error: no such file: ", $opts['file'], "\n";
+			return UserUploader::EXIT_NO_FILE;
         }
 
         if (!$this->tableExists()) {
