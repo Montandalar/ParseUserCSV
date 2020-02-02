@@ -20,21 +20,23 @@ The user will need to have privileges to CREATE, DROP, SELECT and INSERT on the
 
 The program will also print a shorter version of this help.
 
-Usage: php user\_upload.php [options]
-                <--file <file> [--dry\_run] | --create\_table>
+```
+Usage: php user_upload.php [options]
+                <--file <file> [--dry_run] | --create_table>
 
 Options:
     --file <file>   Specifies the path of the CSV to parse. You must specify
                     either this option or --create_table.
-    --create_table Create the MySQL users table, then quit. If the table
+    --create_table  Create the MySQL users table, then quit. If the table
                     already exists, any data already in it will be lost.
-    --dry_run      Run the program, but do not update the database. Invalid
+    --dry_run       Run the program, but do not update the database. Invalid
                     email addresses will be printed to the output.
 
     -u <user>       Connect with this MySQL user
     -p <password>   Connect with this MySQL password
     -d <database>   Connect to this MySQL database
     -h <host>       Connect to the MySQL database on this host.
+```
 
 ## Installation
 
@@ -96,3 +98,12 @@ In order to run the tests, you need to set the following in your php.ini
 If there are any assertion exceptions thrown, the program is not working
 properly. Other awrnings or errors that appear are just the output of the
 program.
+
+# Security note
+Since you have to provide the user's password on the command line, make sure it
+is not recorded in your shell history.
+
+In bash this is controlled by the HISTCONTROL variable, which must be set to
+ignoreboth (this is usually the default). To make sure you invocation of this
+application is not recorded, start the command line with a space character.
+
