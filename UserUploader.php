@@ -13,22 +13,6 @@ class UserUploader {
     /** @var resource */
     private $input;
 
-    private function printUsage() : void {
-?>
-    user_upload.php - Parse a CSV of users into the database
-
-        --file [csv file name] - path of the CSV to be parsed
-        --create_table - this will cause the MySQL users table to be built
-                         (and no further action will be taken)
-        --dry_run - don't alter the database
-        -u - MySQL username
-        -p - MySQL password
-        -h - MySQL host
-        -d - MySQL database
-        --help - show this help
-<?php
-    }
-
     private function createTable() : bool {
         try {
             $stmt = $this->dbh->prepare(
@@ -65,6 +49,8 @@ EOD
     // The scope of this project is a bit small to worry about adding surname
     // capitalisation rules.
     private function preprocessName(string $n) : string {
+        // Names don't have to be purely alphabetical. This isn't a rule applied
+        // to names in many places.
         $n = trim($n);
         $n = strtolower($n);
         $n[0] = strtoupper($n[0]);
@@ -72,7 +58,7 @@ EOD
     }
 
     // Uses the 
-    private function loadCSV(string $filename) : int {
+    private function loadCSV(string $filename, bool $dryRun) : int {
         $line = fgetcsv($this->input);
         if ($line === NULL) { // empty file
             echo "$filename: Error: Invalid file\n";
@@ -120,13 +106,11 @@ EOD;
             if ($line == [NULL]) {
                 continue; // Empty line
             }
-            // TODO:
-            // * Check result of execution. Email must be unique.
-            // * Pre-process / validate each field
 
             $email = $line[$columnIndexes["email"]];
             $email = trim($email);
             $email = strtolower($email);
+            // Yes, exclamation marks are valid in email addresses
             if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 printf("%s: Warning: Invalid email %s on line %d\n",
                          $filename, $email, $lineNo);
@@ -135,6 +119,8 @@ EOD;
 
             $name = $this->preprocessName($line[$columnIndexes["name"]]);
             $surname = $this->preprocessName($line[$columnIndexes["surname"]]);
+
+            if ($dryRun) continue;
             $result = $stmt->execute();
             if ($result === FALSE) {
                 $einfo = $stmt->errorInfo();
@@ -233,7 +219,7 @@ EOD;
 
         if (!isset($opts['file'])) {
             echo "Error: no input file specified\n";
-            $this->printUsage();
+            echo $opts->getHelpText();
             return UserUploader::EXIT_NO_FILE;
         }
 
@@ -255,7 +241,7 @@ EOD;
             return UserUploader::EXIT_NO_FILE;
         }
 
-        $ret = $this->loadCSV($opts['file']);
+        $ret = $this->loadCSV($opts['file'], isset($opts['dry_run']));
         fclose($this->input);
 		return $ret;
 

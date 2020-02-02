@@ -56,7 +56,7 @@ assert($fname !== FALSE);
 assert(unlink($fname));
 // Try to read the temp file as input
 $ret = $uploader->main(explode(" ",
-        "user_upload.php -u $user -p $pass -h $host -d appdb --file $fname"));
+        "user_upload.php -u $user -p $pass -h $host -d $database --file $fname"));
 assert($ret == UserUploader::EXIT_NO_FILE);
 
 // Try to read file without permission
@@ -66,7 +66,7 @@ assert($fname !== FALSE);
 // Make file un-readable,writeable,executable by everyone
 assert(chmod($fname, 0));
 $ret = $uploader->main(explode(" ",
-        "user_upload.php -u $user -p $pass -h $host -d appdb --file $fname"));
+        "user_upload.php -u $user -p $pass -h $host -d $database --file $fname"));
 assert($ret == UserUploader::EXIT_NO_FILE);
 assert(unlink($fname));
 
@@ -74,9 +74,41 @@ assert(unlink($fname));
 $fname = tempnam(".", "");
 assert($fname !== FALSE);
 $ret = $uploader->main(explode(" ",
-        "user_upload.php -u $user -p $pass -h $host -d appdb --file $fname"));
+        "user_upload.php -u $user -p $pass -h $host -d $database --file $fname"));
 assert($ret == UserUploader::EXIT_SUCCESS);
 assert(unlink($fname));
 
+// The next tests will compare the contents of the database to
+// what it should be.
+$dbh = new PDO(
+    sprintf('mysql:host=%s;dbname=%s', $host, $database), $user, $pass
+);
+
+// Dry-run
+// We have already created the table, which uses CREATE OR REPLACE, so it will
+// be empty. Dry-run will therefore do nothing.
+$stmt = $dbh->prepare("SELECT COUNT(*) FROM users");
+assert($stmt);
+$res = $stmt->execute();
+assert($res);
+$res = $stmt->fetch(PDO::FETCH_NUM);
+assert($res);
+assert($res[0] == 0);
+
+// Actual run
+$ret = $uploader->main(explode(" ",
+        "user_upload.php -u $user -p $pass -h $host -d $database --file users.csv"));
+assert($ret == UserUploader::EXIT_SUCCESS);
+$stmt = $dbh->prepare("SELECT * FROM users;");
+assert($stmt);
+$res = $stmt->execute();
+assert($res);
+
+assert($stmt->rowCount() == 10);
+$res = $stmt->fetch(PDO::FETCH_ASSOC);
+assert($res);
+assert($res['email'] == "jsmith@gmail.com");
+assert($res['name'] == "John");
+assert($res['surname'] == "Smith");
 
 ?>
